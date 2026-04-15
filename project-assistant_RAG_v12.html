@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Project Assistant v12</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+/* ── GitHub dark theme tokens ── */
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#30363d;
+  --border:#30363d;--border2:#3d444d;--border3:#484f58;
+  --accent:#2f81f7;--accent2:#58a6ff;--accent3:rgba(47,129,247,.12);
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --success:#3fb950;--danger:#f85149;--warn:#d29922;--info:#58a6ff;
+  --user-bubble:#1c2d3f;--ai-bubble:#161b22;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  --r:10px;--rs:6px;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--border3);}
+.shell{display:flex;flex-direction:column;height:100vh;}
+
+/* ── Topbar ── */
+.topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;user-select:none;}
+.logo{display:flex;align-items:center;gap:8px;cursor:default;}
+.logo-icon{width:24px;height:24px;border-radius:6px;background:var(--accent3);border:1px solid rgba(47,129,247,.3);display:flex;align-items:center;justify-content:center;font-size:12px;}
+.logo-text{font-size:14px;font-weight:600;letter-spacing:-.01em;}
+.topbar-sep{flex:1;}
+.topbar-credit{font-size:11px;color:var(--text3);}
+.topbar-credit span{color:var(--accent2);font-weight:500;}
+.chip{font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:20px;border:1px solid var(--border2);color:var(--text2);background:var(--bg3);white-space:nowrap;letter-spacing:0;}
+.chip.ready{color:var(--success);border-color:rgba(63,185,80,.3);background:rgba(63,185,80,.07);}
+.chip.warn{color:var(--warn);border-color:rgba(210,153,34,.3);background:rgba(210,153,34,.07);}
+.chip.info{color:var(--info);border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.07);}
+.chip.web{color:#a371f7;border-color:rgba(163,113,247,.3);background:rgba(163,113,247,.08);}
+
+/* ── Body ── */
+.body{display:flex;flex:1;overflow:hidden;}
+
+/* ── Sidebar ── */
+.sidebar{width:var(--sidebar-w);min-width:220px;max-width:480px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:14px 12px;gap:14px;flex-shrink:0;}
+.sidebar-resizer{width:4px;background:transparent;cursor:col-resize;flex-shrink:0;transition:background .15s;position:relative;}
+.sidebar-resizer:hover,.sidebar-resizer.active{background:var(--accent);}
+
+.slabel{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+.divider{height:1px;background:var(--border);flex-shrink:0;}
+
+/* ── Project bar ── */
+.project-bar{display:flex;gap:5px;}
+.project-select{flex:1;padding:7px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:var(--font);font-size:12px;font-weight:500;outline:none;cursor:pointer;transition:border .2s;}
+.project-select:focus{border-color:var(--accent);}
+.icon-btn{width:28px;height:28px;border-radius:var(--rs);background:none;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.icon-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.icon-btn.danger:hover{color:var(--danger);border-color:rgba(248,81,73,.4);}
+
+/* ── Engine info (user view) ── */
+.engine-info{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);}
+.engine-info-icon{font-size:14px;}
+.engine-info-text{flex:1;}
+.engine-info-label{font-size:11px;font-weight:500;color:var(--text);}
+.engine-info-sub{font-size:10px;color:var(--text3);margin-top:1px;}
+.engine-info-lock{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 5px;border-radius:4px;line-height:1;}
+.engine-info-lock:hover{color:var(--accent2);background:var(--accent3);}
+
+/* ── Source mode toggle ── */
+.mode-toggle{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:2px;gap:2px;}
+.mode-btn{flex:1;padding:6px;border:none;border-radius:4px;font-size:11px;font-weight:500;font-family:var(--font);cursor:pointer;background:none;color:var(--text3);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px;}
+.mode-btn:hover{color:var(--text2);}
+.mode-btn.active{background:var(--bg4);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.mode-btn.active.web{color:#a371f7;}
+
+/* ── Source tabs ── */
+.src-tabs{display:flex;gap:3px;margin-bottom:8px;}
+.stab{flex:1;padding:6px 4px;font-size:11px;font-weight:500;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);cursor:pointer;transition:all .15s;text-align:center;}
+.stab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.pane{display:none;flex-direction:column;gap:7px;}
+.pane.active{display:flex;}
+
+/* ── Drop zone ── */
+.drop-wrap{position:relative;}
+.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:18px 10px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3);}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:var(--accent3);}
+.dz-icon{font-size:22px;margin-bottom:5px;}
+.drop-zone p{font-size:11px;color:var(--text2);line-height:1.5;}
+.drop-zone p strong{color:var(--text);}
+input[type=file]{display:none;}
+.url-row{display:flex;gap:5px;}
+.url-row input{flex:1;padding:8px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;outline:none;transition:border .2s;}
+.url-row input:focus{border-color:var(--accent);}
+.url-row input::placeholder{color:var(--text3);}
+textarea.paste-box{width:100%;min-height:80px;padding:8px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:var(--font);font-size:12px;resize:vertical;outline:none;transition:border .2s;line-height:1.6;}
+textarea.paste-box:focus{border-color:var(--accent);}
+textarea.paste-box::placeholder{color:var(--text3);}
+.crawl-row{display:flex;align-items:center;gap:5px;}
+.crawl-row label{font-size:11px;color:var(--text3);white-space:nowrap;}
+.crawl-row select{flex:1;padding:5px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);font-size:11px;outline:none;}
+.field-hint{font-size:11px;color:var(--text3);line-height:1.6;}
+.field-hint a{color:var(--accent2);}
+.pages-badge{font-size:10px;color:var(--success);background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.2);border-radius:8px;padding:2px 7px;}
+
+/* ── Loading overlay ── */
+.load-overlay{display:none;position:absolute;inset:0;background:var(--bg2);border-radius:var(--r);z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1.5px dashed var(--border2);}
+.load-overlay.active{display:flex;}
+.load-spinner{width:32px;height:32px;border-radius:50%;border:2.5px solid var(--border2);border-top-color:var(--accent);animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-label{font-size:12px;color:var(--text2);text-align:center;max-width:180px;line-height:1.6;}
+.load-sub{font-size:10px;color:var(--text3);}
+
+/* ── Btn ── */
+.btn{padding:6px 12px;border-radius:var(--rs);font-size:12px;font-family:var(--font);font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all .15s;}
+.btn:hover{background:var(--bg3);color:var(--text);}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.accent:hover{opacity:.88;}
+.btn.sm{padding:4px 9px;font-size:11px;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.loading{pointer-events:none;opacity:.65;}
+
+/* ── Doc list ── */
+.doc-list{display:flex;flex-direction:column;gap:4px;}
+.doc-item{display:flex;align-items:center;gap:7px;padding:6px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);transition:all .2s;}
+@keyframes successPop{0%{transform:scaleX(.96);opacity:.5}60%{transform:scaleX(1.01)}100%{transform:scaleX(1);opacity:1}}
+.doc-item.new{animation:successPop .35s ease-out;border-color:rgba(63,185,80,.4)!important;background:rgba(63,185,80,.05)!important;}
+.doc-icon{font-size:12px;flex-shrink:0;}
+.doc-name{flex:1;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.doc-bytes{font-size:10px;color:var(--text3);flex-shrink:0;}
+.doc-status{font-size:10px;color:var(--success);flex-shrink:0;}
+.doc-remove{background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0 2px;line-height:1;}
+.doc-remove:hover{color:var(--danger);}
+.doc-empty{font-size:11px;color:var(--text3);text-align:center;padding:8px 0;}
+
+/* ── Web search badge ── */
+.web-badge{display:flex;align-items:flex-start;gap:8px;padding:10px 11px;background:rgba(163,113,247,.06);border:1px solid rgba(163,113,247,.2);border-radius:var(--rs);}
+.web-badge-icon{font-size:16px;flex-shrink:0;}
+.web-badge-text{font-size:11px;color:var(--text2);line-height:1.6;}
+.web-badge-text strong{color:#a371f7;}
+
+/* ── Persona panel ── */
+.persona-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.persona-toggle .chevron{font-size:10px;color:var(--text3);transition:transform .2s;}
+.persona-toggle.open .chevron{transform:rotate(180deg);}
+.persona-body{display:none;flex-direction:column;gap:7px;margin-top:9px;}
+.persona-body.open{display:flex;}
+textarea.persona-box{width:100%;min-height:75px;padding:8px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:var(--font);font-size:12px;resize:vertical;outline:none;transition:border .2s;line-height:1.6;}
+textarea.persona-box:focus{border-color:var(--accent);}
+textarea.persona-box::placeholder{color:var(--text3);}
+.tone-row{display:flex;gap:4px;flex-wrap:wrap;}
+.tone-chip{font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--border2);color:var(--text3);background:var(--bg3);cursor:pointer;transition:all .15s;font-family:var(--font);}
+.tone-chip:hover{border-color:var(--border3);color:var(--text2);}
+.tone-chip.active{background:var(--accent3);border-color:rgba(47,129,247,.5);color:var(--accent2);}
+
+/* ── Chat ── */
+.chat-wrap{position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.chat{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.progress{height:2px;background:var(--border);position:relative;overflow:hidden;flex-shrink:0;}
+.progress::after{content:'';position:absolute;left:-40%;top:0;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite;}
+@keyframes slide{0%{left:-40%}100%{left:100%}}
+.progress.hidden{display:none;}
+.err-bar{margin:6px 20px;padding:9px 13px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);border-radius:var(--rs);font-size:12px;color:var(--danger);display:none;line-height:1.6;}
+
+/* ── Chat actions bar ── */
+.chat-actions{display:flex;align-items:center;gap:6px;padding:8px 20px 0;flex-shrink:0;}
+.chat-action-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;background:none;border:1px solid var(--border2);border-radius:14px;color:var(--text3);font-size:11px;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.chat-action-btn:hover{background:var(--bg3);color:var(--text2);border-color:var(--border3);}
+.chat-action-btn.danger:hover{color:var(--danger);border-color:rgba(248,81,73,.4);}
+
+/* ── Messages ── */
+.messages{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:20px;}
+.empty-state{margin:auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:360px;}
+.empty-icon{width:52px;height:52px;border-radius:14px;background:var(--accent3);border:1px solid rgba(47,129,247,.2);display:flex;align-items:center;justify-content:center;font-size:24px;opacity:.7;}
+.empty-state h2{font-size:17px;font-weight:600;color:var(--text2);}
+.empty-state p{font-size:12px;color:var(--text3);line-height:1.7;}
+.suggestions{display:flex;flex-direction:column;gap:5px;width:100%;margin-top:4px;}
+.sug{padding:9px 14px;text-align:left;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--font);line-height:1.4;}
+.sug:hover{border-color:rgba(47,129,247,.4);color:var(--text);background:var(--accent3);}
+.msg{display:flex;flex-direction:column;gap:4px;max-width:78%;}
+.msg.user{align-self:flex-end;}
+.msg.ai{align-self:flex-start;}
+.msg-meta{font-size:10px;color:var(--text3);padding:0 5px;}
+.msg.user .msg-meta{text-align:right;}
+.bubble{padding:11px 15px;border-radius:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;word-break:break-word;}
+.msg.user .bubble{background:var(--user-bubble);border:1px solid rgba(47,129,247,.2);border-radius:12px 12px 4px 12px;color:var(--text);}
+.msg.ai .bubble{background:var(--ai-bubble);border:1px solid var(--border);border-radius:12px 12px 12px 4px;color:var(--text);}
+.msg.ai.web .bubble{border-color:rgba(163,113,247,.25);background:rgba(163,113,247,.04);}
+
+/* ── Stream cursor ── */
+.stream-cursor{display:inline-block;width:2px;height:1em;background:var(--accent2);margin-left:2px;vertical-align:text-bottom;animation:blink .6s step-end infinite;border-radius:1px;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Input area ── */
+.input-area{border-top:1px solid var(--border);padding:12px 20px;background:var(--bg2);display:flex;gap:9px;align-items:flex-end;}
+.input-area textarea{flex:1;resize:none;padding:10px 13px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.55;max-height:140px;min-height:42px;outline:none;transition:border .2s;}
+.input-area textarea:focus{border-color:rgba(47,129,247,.5);}
+.input-area textarea::placeholder{color:var(--text3);}
+.send-btn{width:42px;height:42px;border-radius:10px;flex-shrink:0;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;color:#fff;}
+.send-btn:disabled{opacity:.3;cursor:not-allowed;}
+.send-btn:hover:not(:disabled){opacity:.85;}
+.send-btn svg{width:16px;height:16px;}
+
+/* ── History panel ── */
+.hist-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:19;display:none;backdrop-filter:blur(2px);}
+.hist-backdrop.open{display:block;}
+.hist-panel{position:absolute;top:0;left:50%;right:0;bottom:0;background:var(--bg2);border-left:1px solid var(--border2);z-index:20;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 28px rgba(0,0,0,.4);}
+.hist-panel.open{transform:translateX(0);}
+.hist-header{display:flex;align-items:center;gap:9px;padding:13px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.hist-header h3{font-size:13px;font-weight:600;flex:1;}
+.hist-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px 5px;border-radius:4px;}
+.hist-close:hover{color:var(--text);background:var(--bg3);}
+.hist-list{flex:1;overflow-y:auto;padding:10px;}
+.hist-empty{font-size:12px;color:var(--text3);text-align:center;padding:28px 0;}
+.hist-item{padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:5px;cursor:pointer;transition:all .15s;}
+.hist-item:hover{border-color:var(--border2);background:var(--bg4);}
+.hist-item.active-session{border-color:rgba(47,129,247,.4);background:var(--accent3);}
+.hist-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hist-meta{font-size:10px;color:var(--text3);display:flex;gap:8px;}
+.hist-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:2px 5px;border-radius:3px;margin-top:3px;font-family:var(--font);}
+.hist-del:hover{color:var(--danger);background:rgba(248,81,73,.08);}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:460px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.7);}
+.modal-header{display:flex;align-items:center;gap:9px;padding:16px 18px 0;}
+.modal-header h2{font-size:14px;font-weight:600;flex:1;}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:17px;line-height:1;padding:3px 6px;border-radius:5px;}
+.modal-close:hover{color:var(--text);background:var(--bg3);}
+.modal-body{padding:16px 18px 0;display:flex;flex-direction:column;gap:13px;}
+.modal-footer{padding:14px 18px 18px;display:flex;gap:7px;justify-content:flex-end;}
+.modal-section{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:4px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px;}
+.f-label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:5px;display:block;}
+.f-input,.f-select{width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:var(--font);font-size:12px;outline:none;transition:border .2s;}
+.f-input:focus,.f-select:focus{border-color:var(--accent);}
+.f-hint{font-size:11px;color:var(--text3);line-height:1.6;margin-top:4px;}
+.f-hint a{color:var(--accent2);}
+.f-hint code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:10px;}
+.key-row{display:flex;gap:5px;}
+.key-row .f-input{flex:1;}
+.eye-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:3px 5px;border-radius:4px;}
+.eye-btn:hover{color:var(--text2);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);}
+.toggle-info .t-label{font-size:12px;color:var(--text);}
+.toggle-info .t-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.sw{position:relative;width:36px;height:19px;flex-shrink:0;}
+.sw input{opacity:0;width:0;height:0;}
+.sw .sl{position:absolute;inset:0;background:var(--bg4);border-radius:19px;cursor:pointer;transition:.22s;border:1px solid var(--border2);}
+.sw input:checked + .sl{background:var(--accent);}
+.sw .sl::before{content:'';position:absolute;width:13px;height:13px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.22s;}
+.sw input:checked + .sl::before{transform:translateX(17px);}
+.admin-badge{display:inline-flex;align-items:center;font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.25);color:var(--warn);margin-left:5px;font-weight:600;letter-spacing:.04em;}
+.recovery-code{font-family:var(--mono);font-size:12px;padding:8px 11px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rs);color:var(--success);letter-spacing:.1em;text-align:center;margin-top:4px;}
+
+/* ── Username prompt ── */
+.username-modal .modal-box{max-width:360px;text-align:center;}
+.username-modal .u-icon{font-size:36px;margin:20px 0 8px;}
+.username-modal h2{font-size:16px;margin-bottom:6px;}
+.username-modal p{font-size:12px;color:var(--text3);line-height:1.7;margin:0 0 16px;}
+
+/* ── Markdown rendered content ── */
+.md-body{font-size:13px;line-height:1.75;color:var(--text);}
+.md-body p{margin:0 0 10px;}
+.md-body p:last-child{margin-bottom:0;}
+.md-body h1,.md-body h2,.md-body h3,.md-body h4{font-weight:600;margin:14px 0 6px;color:var(--text);}
+.md-body h1{font-size:16px;}
+.md-body h2{font-size:15px;}
+.md-body h3{font-size:14px;}
+.md-body h4{font-size:13px;color:var(--text2);}
+.md-body ul,.md-body ol{padding-left:20px;margin:6px 0 10px;}
+.md-body li{margin:3px 0;line-height:1.65;}
+.md-body li>ul,.md-body li>ol{margin:3px 0;}
+.md-body strong{font-weight:600;color:var(--text);}
+.md-body em{font-style:italic;color:var(--text2);}
+.md-body code{font-family:var(--mono);font-size:11.5px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:#e06c75;}
+.md-body pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;overflow-x:auto;margin:8px 0;}
+.md-body pre code{background:none;border:none;padding:0;color:var(--text2);font-size:12px;line-height:1.6;}
+.md-body blockquote{border-left:3px solid var(--accent);margin:8px 0;padding:4px 12px;color:var(--text2);background:var(--accent3);border-radius:0 var(--rs) var(--rs) 0;}
+.md-body hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
+.md-body table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px;}
+.md-body th,.md-body td{border:1px solid var(--border);padding:6px 10px;text-align:left;}
+.md-body th{background:var(--bg3);font-weight:600;color:var(--text);}
+.md-body td{color:var(--text2);}
+.md-body a{color:var(--accent2);text-decoration:none;}
+.md-body a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo" onclick="logoClick()" title="Click 3× for admin">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <div class="logo-text">Project Assistant</div>
+      </div>
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-credit">Developed by <span>Ruhidas</span></div>
+    <div class="chip" id="mode-chip">Docs</div>
+    <div class="chip" id="engine-chip">No engine</div>
+    <div class="chip" id="storage-chip" title="Storage mode">💾 Local</div>
+    <div class="chip warn" id="doc-chip">No sources</div>
+  </div>
+
+  <div class="body">
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+
+      <!-- Projects -->
+      <div>
+        <div class="slabel">🗂 Projects</div>
+        <div class="project-bar">
+          <select class="project-select" id="project-select" onchange="switchProject(this.value)"></select>
+          <button class="icon-btn" onclick="newProject()" title="New project">＋</button>
+          <button class="icon-btn danger" onclick="deleteProject()" title="Delete project">🗑</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Engine info (always shown; hides lock btn in deployed mode) -->
+      <div>
+        <div class="slabel">🔮 Engine</div>
+        <div class="engine-info" id="engine-info">
+          <div class="engine-info-icon" id="ei-icon">⚙️</div>
+          <div class="engine-info-text">
+            <div class="engine-info-label" id="ei-label">Not configured</div>
+            <div class="engine-info-sub" id="ei-sub">Click 🔒 to configure</div>
+          </div>
+          <button class="engine-info-lock" id="ei-lock-btn" onclick="openAdminModal()" title="Admin settings">🔒</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- AI Persona -->
+      <div>
+        <div class="persona-toggle" id="persona-toggle" onclick="togglePersona()">
+          <div class="slabel" style="margin:0">🎭 Persona &amp; Tone</div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="persona-body" id="persona-body">
+          <textarea class="persona-box" id="persona-instructions" placeholder="e.g. Reply in bullet points • Be concise • Respond in Hindi • Act as a PM…"></textarea>
+          <div class="tone-row">
+            <button class="tone-chip" onclick="applyTone(this,'Professional')">Professional</button>
+            <button class="tone-chip" onclick="applyTone(this,'Friendly')">Friendly</button>
+            <button class="tone-chip" onclick="applyTone(this,'Concise')">Concise</button>
+            <button class="tone-chip" onclick="applyTone(this,'Detailed')">Detailed</button>
+            <button class="tone-chip" onclick="applyTone(this,'Technical')">Technical</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Knowledge Sources -->
+      <div>
+        <div class="slabel">📂 Knowledge Sources</div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="mode-docs-btn" onclick="setSourceMode('docs')">📂 My Docs</button>
+          <button class="mode-btn web" id="mode-web-btn" onclick="setSourceMode('web')">🌐 Web Search</button>
+        </div>
+
+        <div id="docs-panel">
+          <div class="src-tabs">
+            <button class="stab active" onclick="switchTab('file')">📁 File</button>
+            <button class="stab" onclick="switchTab('url')">🔗 URL</button>
+            <button class="stab" onclick="switchTab('text')">📝 Text</button>
+          </div>
+          <div class="pane active" id="tab-file">
+            <div class="drop-wrap">
+              <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+                <div class="dz-icon">📂</div>
+                <p><strong>Click or drag &amp; drop</strong><br>PDF · DOCX · TXT</p>
+              </div>
+              <div class="load-overlay" id="file-overlay"><div class="load-spinner"></div><div class="load-label" id="file-overlay-label">Reading…</div></div>
+            </div>
+            <input type="file" id="file-input" multiple accept=".pdf,.docx,.doc,.txt" onchange="handleFiles(this.files)"/>
+          </div>
+          <div class="pane" id="tab-url">
+            <div class="drop-wrap">
+              <div class="url-row">
+                <input type="url" id="url-input" placeholder="https://example.com"/>
+                <button class="btn accent" id="fetch-btn" onclick="addUrl()">Fetch</button>
+              </div>
+              <div class="crawl-row">
+                <label>Depth:</label>
+                <select id="crawl-depth">
+                  <option value="1">1 page only</option>
+                  <option value="5" selected>Up to 5 pages</option>
+                  <option value="10">Up to 10 pages</option>
+                  <option value="20">Up to 20 pages</option>
+                </select>
+              </div>
+              <div class="field-hint" id="url-hint">JS-rendered sites supported via Jina AI</div>
+              <div class="load-overlay" id="url-overlay" style="border-radius:var(--rs);min-height:80px;">
+                <div class="load-spinner"></div>
+                <div class="load-label" id="url-overlay-label">Fetching…</div>
+                <div class="load-sub" id="url-overlay-sub"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pane" id="tab-text">
+            <textarea class="paste-box" id="paste-box" placeholder="Paste notes, specs, README, or any content…"></textarea>
+            <button class="btn accent" onclick="addPaste()">Add Content</button>
+          </div>
+        </div>
+
+        <div id="web-panel" style="display:none;">
+          <div class="web-badge">
+            <div class="web-badge-icon">🌐</div>
+            <div class="web-badge-text"><strong>Live Web Search</strong><br>Every question is answered using real-time search results — like ChatGPT Browse.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider" id="sources-divider"></div>
+
+      <!-- Loaded Sources -->
+      <div id="loaded-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <div class="slabel" style="margin:0">📋 Loaded Sources</div>
+          <button class="btn sm" onclick="clearAll()">Clear all</button>
+        </div>
+        <div class="doc-list" id="doc-list"><div class="doc-empty">No sources loaded yet</div></div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- Resizer -->
+    <div class="sidebar-resizer" id="sidebar-resizer"></div>
+
+    <!-- Chat wrap -->
+    <div class="chat-wrap">
+      <div class="chat">
+        <div class="chat-actions">
+          <button class="chat-action-btn" onclick="newChat()">✦ New Chat</button>
+          <button class="chat-action-btn danger" onclick="clearHistory()">🗑 Clear</button>
+          <button class="chat-action-btn" onclick="openHistPanel()" style="margin-left:auto;">🕐 History</button>
+        </div>
+        <div class="progress hidden" id="progress"></div>
+        <div class="err-bar" id="err-bar"></div>
+        <div class="messages" id="messages">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">🗂️</div>
+            <h2>Ready to help</h2>
+            <p>Load documents or switch to Web Search, then ask anything.</p>
+            <div class="suggestions">
+              <button class="sug" onclick="suggestQ(this)">Summarise the key objectives</button>
+              <button class="sug" onclick="suggestQ(this)">What are the main risks or open issues?</button>
+              <button class="sug" onclick="suggestQ(this)">List all action items and owners</button>
+            </div>
+          </div>
+        </div>
+        <div class="input-area">
+          <textarea id="chat-input" placeholder="Ask anything…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- History panel -->
+      <div class="hist-backdrop" id="hist-backdrop" onclick="closeHistPanel()"></div>
+      <div class="hist-panel" id="hist-panel">
+        <div class="hist-header">
+          <span>🕐</span><h3>Chat History</h3>
+          <button class="hist-close" onclick="closeHistPanel()">✕</button>
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+      </div>
+    </div><!-- /chat-wrap -->
+
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>⚙️</span>
+      <h2>Admin Settings <span class="admin-badge">ADMIN</span></h2>
+      <button class="modal-close" onclick="closeAdminModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">Intelligence Engine</div>
+
+      <div>
+        <label class="f-label">Engine</label>
+        <select class="f-select" id="adm-engine" onchange="onAdmEngineChange()"></select>
+      </div>
+      <div>
+        <label class="f-label">Model</label>
+        <select class="f-select" id="adm-model"></select>
+      </div>
+      <div>
+        <label class="f-label">API Key</label>
+        <div class="key-row">
+          <input class="f-input" type="password" id="adm-key" placeholder="Paste API key…"/>
+          <button class="eye-btn" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password'">👁</button>
+        </div>
+        <div class="f-hint" id="adm-hint"></div>
+      </div>
+      <div class="modal-section">Local Storage</div>
+      <div id="storage-stats" style="font-size:11px;color:var(--text2);line-height:1.9;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);">
+        Loading…
+      </div>
+      <div style="display:flex;gap:7px;margin-top:6px;">
+        <button class="btn sm" onclick="exportAllData()" style="flex:1">📤 Export Backup</button>
+        <button class="btn sm" style="flex:1;color:var(--danger);border-color:rgba(248,81,73,.3)" onclick="clearAllLocalData()">🗑 Clear Storage</button>
+      </div>
+      <div style="margin-top:8px;">
+        <label class="f-label">📁 Local Save Folder <span style="font-weight:400;color:var(--text3)">(Chrome/Edge only — saves chat history as JSON files)</span></label>
+        <div style="display:flex;gap:7px;align-items:center;">
+          <div id="folder-status" style="flex:1;font-size:11px;color:var(--text3);padding:7px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);">No folder selected</div>
+          <button class="btn sm accent" onclick="pickLocalFolder()">📂 Choose Folder</button>
+        </div>
+        <div class="f-hint">Chats auto-save to this folder as JSON files. Great for local backup without GitHub.</div>
+      </div>
+
+      <div class="modal-section">GitHub Storage <span style="font-size:10px;color:var(--text3);text-transform:none;font-weight:400;">(optional — stores all users' chats in your repo)</span></div>
+
+      <div style="padding:10px 12px;background:rgba(47,129,247,.06);border:1px solid rgba(47,129,247,.2);border-radius:var(--rs);margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:7px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">📋 GitHub Setup Guide (click to expand) ▼</div>
+        <div style="display:none;font-size:11px;color:var(--text2);line-height:1.8;">
+          <b style="color:var(--text)">Step 1</b> — Create a GitHub repo (can be private):<br>
+          Go to <a href="https://github.com/new" target="_blank" style="color:var(--accent2)">github.com/new</a> → name it e.g. <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">project-assistant-data</code> → click "Create repository"<br><br>
+          <b style="color:var(--text)">Step 2</b> — Create a Personal Access Token:<br>
+          Go to <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--accent2)">GitHub → Settings → Tokens (classic) → Generate new token</a><br>
+          • Note: <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">Project Assistant</code> &nbsp;• Expiration: No expiration (or 1 year)<br>
+          • Check only: ✅ <b>repo</b> (full control of private repositories)<br>
+          • Click "Generate token" → copy it immediately (shown only once!)<br><br>
+          <b style="color:var(--text)">Step 3</b> — Fill in below:<br>
+          • Token: paste the <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">ghp_...</code> token<br>
+          • Repo: <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">your-username/project-assistant-data</code><br><br>
+          <b style="color:var(--text)">Step 4</b> — Deploy to GitHub Pages (to launch the app):<br>
+          • In your repo → Settings → Pages → Source: Deploy from branch → <code>main</code> → <code>/root</code><br>
+          • Upload the HTML file to the repo root as <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">index.html</code><br>
+          • Your app will be live at: <code style="font-family:var(--mono);background:var(--bg);padding:1px 4px;border-radius:3px;">https://your-username.github.io/your-repo/</code>
+        </div>
+      </div>
+      <div>
+        <label class="f-label">GitHub Personal Access Token</label>
+        <div class="key-row">
+          <input class="f-input" type="password" id="adm-gh-token" placeholder="ghp_…"/>
+          <button class="eye-btn" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password'">👁</button>
+        </div>
+        <div class="f-hint">Needs <code>contents:write</code> scope. <a href="https://github.com/settings/tokens" target="_blank">Create token →</a></div>
+      </div>
+      <div>
+        <label class="f-label">Repo (owner/repo)</label>
+        <input class="f-input" id="adm-gh-repo" placeholder="ruhidas247/Project-Assistant-AI-Powered-RAG-Knowledge-Engine"/>
+        <div class="f-hint">The history folder will be created inside this repo.</div>
+      </div>
+
+      <div class="modal-section">Security</div>
+      <div>
+        <label class="f-label">New Admin Password</label>
+        <input class="f-input" type="password" id="adm-pw" placeholder="Leave blank to keep current"/>
+      </div>
+      <div>
+        <label class="f-label">Recovery Code (save this!)</label>
+        <div class="recovery-code" id="adm-recovery-code">—</div>
+        <div class="f-hint">Use this code instead of password if you forget it.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn accent" onclick="saveAdmin()">Save &amp; Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Username prompt -->
+<div class="modal-overlay username-modal open" id="username-modal">
+  <div class="modal-box" style="text-align:center;padding-bottom:20px;">
+    <div style="font-size:40px;margin:22px 0 10px;">👋</div>
+    <h2 style="font-size:16px;margin-bottom:8px;">Welcome to Project Assistant</h2>
+    <p style="font-size:12px;color:var(--text3);line-height:1.7;padding:0 20px 14px;">Enter your name so your chats and projects are kept separate from other users.</p>
+    <div style="padding:0 20px 16px;">
+      <input class="f-input" type="text" id="username-input" placeholder="Your name or nickname" maxlength="32" style="text-align:center;font-size:14px;" onkeydown="if(event.key==='Enter')setUsername()"/>
+    </div>
+    <button class="btn accent" onclick="setUsername()" style="margin:0 20px;">Get Started →</button>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ═══════════════════════════════════════════════════════
+   DEPLOY CONFIG
+   Fill these before committing to GitHub to pre-configure
+   the app for all users without needing the admin panel.
+   Leave apiKey blank to require users to configure themselves.
+═══════════════════════════════════════════════════════ */
+const DEPLOY_CONFIG = {
+  engine:        'groq',    // e.g. 'groq' | 'claude' | 'openai' | 'gemini' | 'mistral'
+  model:         'llama-3.3-70b-versatile',    // e.g. 'llama-3.3-70b-versatile'
+  apiKey:        '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',    // Your API key (visible in HTML source — use a restricted key)
+  locked:        false, // true = hide engine from users
+  adminPassword: 'admin',    // Pre-set admin password (leave blank to use stored one)
+  githubToken:   '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',    // GitHub PAT for cloud chat storage
+  githubRepo:    'ruhidas247/project-assistant-data',    // 'owner/repo' e.g. 'ruhidas247/my-repo'
+};
+
+/* ═══════════════════════════════════════════════════════
+   ENGINE REGISTRY
+═══════════════════════════════════════════════════════ */
+const ENGINES = {
+  groq:{label:'Groq',icon:'⚡',format:'openai',url:'https://api.groq.com/openai/v1/chat/completions',
+    models:[{id:'llama-3.3-70b-versatile',label:'Llama 3.3 70B'},{id:'llama-3.1-8b-instant',label:'Llama 3.1 8B'},{id:'gemma2-9b-it',label:'Gemma 2 9B'},{id:'mixtral-8x7b-32768',label:'Mixtral 8x7B'}],
+    hint:'Free · No credit card · <a href="https://console.groq.com/keys" target="_blank">Get key →</a>'},
+  openrouter:{label:'OpenRouter',icon:'🔀',format:'openrouter',url:'https://openrouter.ai/api/v1/chat/completions',
+    models:[{id:'meta-llama/llama-3.3-70b-instruct:free',label:'Llama 3.3 70B (free)'},{id:'deepseek/deepseek-r1:free',label:'DeepSeek R1 (free)'},{id:'anthropic/claude-sonnet-4-5',label:'Claude Sonnet 4.5'},{id:'openai/gpt-4o',label:'GPT-4o'}],
+    hint:'50 free req/day · <a href="https://openrouter.ai/keys" target="_blank">Get key →</a>'},
+  gemini:{label:'Gemini',icon:'✦',format:'gemini',url:null,
+    models:[{id:'gemini-2.0-flash',label:'Gemini 2.0 Flash'},{id:'gemini-1.5-flash',label:'Gemini 1.5 Flash'},{id:'gemini-1.5-pro',label:'Gemini 1.5 Pro'}],
+    hint:'Free quota · <a href="https://aistudio.google.com/app/apikey" target="_blank">Get key →</a>'},
+  mistral:{label:'Mistral',icon:'🌀',format:'openai',url:'https://api.mistral.ai/v1/chat/completions',
+    models:[{id:'open-mistral-7b',label:'Mistral 7B (free)'},{id:'open-mixtral-8x7b',label:'Mixtral 8x7B (free)'},{id:'mistral-large-latest',label:'Mistral Large'}],
+    hint:'1B tok/mo free · <a href="https://console.mistral.ai/api-keys" target="_blank">Get key →</a>'},
+  claude:{label:'Claude',icon:'◆',format:'claude',url:'https://api.anthropic.com/v1/messages',
+    models:[{id:'claude-sonnet-4-6',label:'Claude Sonnet 4.6 — Recommended'},{id:'claude-opus-4-6',label:'Claude Opus 4.6 — Most capable'},{id:'claude-haiku-4-5-20251001',label:'Claude Haiku 4.5 — Fastest'}],
+    hint:'Paid · <a href="https://console.anthropic.com" target="_blank">Get key →</a>'},
+  openai:{label:'OpenAI',icon:'◎',format:'openai',url:'https://api.openai.com/v1/chat/completions',
+    models:[{id:'gpt-4o',label:'GPT-4o'},{id:'gpt-4o-mini',label:'GPT-4o Mini'},{id:'gpt-4-turbo',label:'GPT-4 Turbo'}],
+    hint:'Paid · <a href="https://platform.openai.com/api-keys" target="_blank">Get key →</a>'},
+};
+
+/* ── State ── */
+let currentEngine = 'groq';
+let docs = [];
+let history = [];
+let sourceMode = 'docs';
+let currentSessionId = null;
+let currentProjectId = null;
+let currentUser = null;
+let adminUnlocked = false;
+let logoClicks = 0, logoTimer = null;
+let ghShaCache = {};
+
+/* ── Storage keys ── */
+const K = {
+  sessions: 'pa_sessions',
+  projects: 'pa_projects',
+  user: 'pa_username',
+  admin: 'pa_admin',
+  recovery: 'pa_recovery',
+};
+
+/* ═══════════════════════════════════════════════════════
+   USERNAME
+═══════════════════════════════════════════════════════ */
+function initUser() {
+  const saved = localStorage.getItem(K.user);
+  if (saved) { currentUser = saved; document.getElementById('username-modal').classList.remove('open'); initApp(); }
+  else { document.getElementById('username-input').focus(); }
+}
+function setUsername() {
+  const v = document.getElementById('username-input').value.trim();
+  if (!v) { document.getElementById('username-input').style.borderColor = 'var(--danger)'; return; }
+  currentUser = v;
+  localStorage.setItem(K.user, v);
+  document.getElementById('username-modal').classList.remove('open');
+  initApp();
+}
+
+/* ═══════════════════════════════════════════════════════
+   ADMIN
+═══════════════════════════════════════════════════════ */
+function getAdminCfg() {
+  // DEPLOY_CONFIG takes precedence if populated
+  if (DEPLOY_CONFIG.apiKey) {
+    return {
+      engine: DEPLOY_CONFIG.engine || 'groq',
+      model:  DEPLOY_CONFIG.model  || ENGINES[DEPLOY_CONFIG.engine || 'groq'].models[0].id,
+      apiKey: DEPLOY_CONFIG.apiKey,
+      locked: DEPLOY_CONFIG.locked !== undefined ? DEPLOY_CONFIG.locked : true,
+      githubToken: DEPLOY_CONFIG.githubToken || '',
+      githubRepo:  DEPLOY_CONFIG.githubRepo  || '',
+    };
+  }
+  try { return JSON.parse(localStorage.getItem(K.admin) || 'null'); } catch { return null; }
+}
+function saveAdminCfg(cfg) { localStorage.setItem(K.admin, JSON.stringify(cfg)); }
+
+function logoClick() {
+  logoClicks++;
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => logoClicks = 0, 700);
+  if (logoClicks >= 3) { logoClicks = 0; openAdminModal(); }
+}
+
+function openAdminModal() {
+  const pw = localStorage.getItem('pa_adminpw') || (DEPLOY_CONFIG.adminPassword || 'admin');
+  if (!adminUnlocked) {
+    const input = prompt('🔒 Admin password (or recovery code):');
+    if (input === null) return;
+    const recovery = localStorage.getItem(K.recovery);
+    if (input !== pw && input !== recovery) { alert('Incorrect.'); return; }
+    adminUnlocked = true;
+  }
+  // Populate engine dropdown
+  const engSel = document.getElementById('adm-engine');
+  engSel.innerHTML = Object.entries(ENGINES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
+  const cfg = getAdminCfg() || {};
+  if (cfg.engine) engSel.value = cfg.engine;
+  onAdmEngineChange();
+  if (cfg.model) document.getElementById('adm-model').value = cfg.model;
+  document.getElementById('adm-key').value = cfg.apiKey || '';
+  document.getElementById('adm-gh-token').value = cfg.githubToken || '';
+  document.getElementById('adm-gh-repo').value = cfg.githubRepo || '';
+  document.getElementById('adm-pw').value = '';
+  // Show/generate recovery code
+  let rc = localStorage.getItem(K.recovery);
+  if (!rc) { rc = 'RC-' + Math.random().toString(36).slice(2,8).toUpperCase() + '-' + Math.random().toString(36).slice(2,6).toUpperCase(); localStorage.setItem(K.recovery, rc); }
+  document.getElementById('adm-recovery-code').textContent = rc;
+  // Storage stats
+  refreshStorageStats();
+  updateFolderStatus();
+  document.getElementById('admin-modal').classList.add('open');
+}
+
+function refreshStorageStats() {
+  const el = document.getElementById('storage-stats');
+  if (!el) return;
+  try {
+    let totalBytes = 0;
+    const keys = Object.keys(localStorage);
+    for (const k of keys) totalBytes += (localStorage.getItem(k)||'').length * 2;
+    const sessions = loadSessions();
+    const projects = loadProjects();
+    const ghCfg = getGhCfg();
+    const storageMode = ghCfg ? `☁️ <span style="color:var(--success)">GitHub + Local</span>` : `💾 <span style="color:var(--info)">Local only</span>`;
+    el.innerHTML = `
+      Storage mode: ${storageMode}<br>
+      Sessions saved: <b style="color:var(--text)">${sessions.length}</b> conversations<br>
+      Projects: <b style="color:var(--text)">${projects.length}</b><br>
+      Browser storage used: <b style="color:var(--text)">${totalBytes > 1048576 ? (totalBytes/1048576).toFixed(2)+' MB' : Math.round(totalBytes/1024)+' KB'}</b>
+      ${ghCfg ? `<br>GitHub repo: <b style="color:var(--text)">${ghCfg.repo}</b>` : ''}
+    `;
+  } catch(e) { el.textContent = 'Could not read storage info.'; }
+}
+
+function exportAllData() {
+  try {
+    const data = {};
+    for (const k of Object.keys(localStorage)) { try { data[k] = JSON.parse(localStorage.getItem(k)); } catch { data[k] = localStorage.getItem(k); } }
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `project-assistant-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+  } catch(e) { alert('Export failed: ' + e.message); }
+}
+
+function clearAllLocalData() {
+  if (!confirm('⚠️ This will delete ALL saved chats, projects, and settings from this browser.\n\nThis cannot be undone. Continue?')) return;
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('pa_'));
+  keys.forEach(k => localStorage.removeItem(k));
+  alert('Cleared. The page will reload.');
+  location.reload();
+}
+function onAdmEngineChange() {
+  const id = document.getElementById('adm-engine').value;
+  const eng = ENGINES[id];
+  document.getElementById('adm-model').innerHTML = eng.models.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+  document.getElementById('adm-hint').innerHTML = eng.hint || '';
+}
+function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
+function saveAdmin() {
+  const cfg = {
+    engine: document.getElementById('adm-engine').value,
+    model:  document.getElementById('adm-model').value,
+    apiKey: document.getElementById('adm-key').value.trim(),
+    locked: false,
+    githubToken: document.getElementById('adm-gh-token').value.trim(),
+    githubRepo:  document.getElementById('adm-gh-repo').value.trim(),
+  };
+  saveAdminCfg(cfg);
+  const newPw = document.getElementById('adm-pw').value.trim();
+  if (newPw) localStorage.setItem('pa_adminpw', newPw);
+  applyAdminCfg();
+  closeAdminModal();
+}
+
+/* ── Deployed mode: true when DEPLOY_CONFIG has an API key pre-filled ── */
+function isDeployedMode() { return !!(DEPLOY_CONFIG.apiKey && DEPLOY_CONFIG.apiKey.trim()); }
+
+function applyAdminCfg() {
+  const cfg = getAdminCfg();
+  if (cfg && cfg.apiKey) {
+    currentEngine = cfg.engine;
+    const sel = document.querySelector('#model-select-hidden') || (() => { const s = document.createElement('select'); s.id = 'model-select-hidden'; s.style.display='none'; document.body.appendChild(s); return s; })();
+    sel.innerHTML = ENGINES[cfg.engine].models.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+    sel.value = cfg.model;
+    const eng = ENGINES[cfg.engine];
+    const modelLabel = eng.models.find(m => m.id === cfg.model)?.label || cfg.model;
+    document.getElementById('ei-icon').textContent = eng.icon;
+    document.getElementById('ei-label').textContent = `${eng.label} · ${modelLabel.split('—')[0].trim()}`;
+    document.getElementById('ei-sub').textContent = isDeployedMode() ? 'Ready' : 'Admin configured';
+    updateEngineChip(cfg.apiKey, cfg.engine, modelLabel);
+  } else {
+    document.getElementById('ei-label').textContent = 'Not configured';
+    document.getElementById('ei-sub').textContent = isDeployedMode() ? 'Contact admin' : 'Click 🔒 to set up';
+    updateEngineChip('', '', '');
+  }
+  // Hide 🔒 button and admin hints from regular users in deployed mode
+  const lockBtn = document.getElementById('ei-lock-btn');
+  if (lockBtn) lockBtn.style.display = isDeployedMode() ? 'none' : '';
+  // Update storage chip
+  const sc = document.getElementById('storage-chip');
+  if (sc) {
+    const ghCfg = getGhCfg();
+    if (ghCfg) { sc.textContent = '☁️ GitHub'; sc.className = 'chip ready'; sc.title = 'Saving to GitHub: '+ghCfg.repo; }
+    else { sc.textContent = '💾 Local'; sc.className = 'chip info'; sc.title = 'Saving to browser localStorage'; }
+  }
+}
+
+function getActiveApiKey() { return (getAdminCfg()?.apiKey) || ''; }
+function getActiveEngine() { return (getAdminCfg()?.engine) || currentEngine; }
+function getActiveModel() {
+  const cfg = getAdminCfg();
+  if (cfg?.model) return cfg.model;
+  return ENGINES[currentEngine]?.models[0]?.id || '';
+}
+
+function updateEngineChip(key, engine, model) {
+  const c = document.getElementById('engine-chip');
+  if (key) {
+    const short = model?.split('—')[0]?.split(' ').slice(0,3).join(' ').trim() || engine;
+    c.textContent = short;
+    c.className = 'chip ready';
+  } else {
+    c.textContent = 'No engine';
+    c.className = 'chip warn';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROJECTS
+═══════════════════════════════════════════════════════ */
+const P_EMOJIS = ['📁','🗂️','📊','🔬','💼','🚀','🎯','📝','🏗️','🔧','🌟','💡'];
+function loadProjects() { try { return JSON.parse(localStorage.getItem(K.projects)||'[]'); } catch { return []; } }
+function saveProjects(p) { localStorage.setItem(K.projects, JSON.stringify(p)); }
+function initProjects() {
+  let p = loadProjects();
+  if (!p.length) { const d = {id:genId(),name:'My Project',emoji:'📁',ts:Date.now()}; p=[d]; saveProjects(p); }
+  currentProjectId = p[0].id;
+  renderProjects();
+}
+function renderProjects() {
+  const p = loadProjects();
+  const sel = document.getElementById('project-select');
+  sel.innerHTML = p.map(x => `<option value="${x.id}" ${x.id===currentProjectId?'selected':''}>${x.emoji} ${x.name}</option>`).join('');
+}
+function switchProject(id) {
+  if (id === currentProjectId) return;
+  saveCurrentSession();
+  currentProjectId = id;
+  docs=[]; renderDocs(); updateDocChip();
+  newChat();
+}
+function newProject() {
+  const name = prompt('Project name:');
+  if (!name?.trim()) return;
+  const p = loadProjects();
+  const proj = {id:genId(),name:name.trim(),emoji:P_EMOJIS[Math.floor(Math.random()*P_EMOJIS.length)],ts:Date.now()};
+  p.push(proj); saveProjects(p);
+  currentProjectId = proj.id;
+  renderProjects();
+  docs=[]; renderDocs(); updateDocChip(); newChat();
+}
+function deleteProject() {
+  const p = loadProjects();
+  if (p.length <= 1) { alert('Cannot delete your only project.'); return; }
+  const cur = p.find(x => x.id === currentProjectId);
+  if (!confirm(`Delete "${cur?.name}"?`)) return;
+  const filtered = p.filter(x => x.id !== currentProjectId);
+  saveProjects(filtered);
+  currentProjectId = filtered[0].id;
+  renderProjects();
+  docs=[]; renderDocs(); updateDocChip(); newChat();
+}
+
+/* ═══════════════════════════════════════════════════════
+   SOURCE MODE
+═══════════════════════════════════════════════════════ */
+function setSourceMode(mode) {
+  sourceMode = mode;
+  document.getElementById('mode-docs-btn').classList.toggle('active', mode==='docs');
+  document.getElementById('mode-web-btn').classList.toggle('active', mode==='web');
+  document.getElementById('docs-panel').style.display = mode==='docs' ? '' : 'none';
+  document.getElementById('web-panel').style.display  = mode==='web'  ? '' : 'none';
+  document.getElementById('loaded-section').style.display = mode==='docs' ? '' : 'none';
+  document.getElementById('sources-divider').style.display = mode==='docs' ? '' : 'none';
+  const mc = document.getElementById('mode-chip');
+  if (mode === 'web') { mc.textContent = '🌐 Web'; mc.className = 'chip web'; }
+  else { mc.textContent = '📂 Docs'; mc.className = 'chip'; updateDocChip(); }
+  document.getElementById('chat-input').placeholder = mode==='web'
+    ? 'Ask anything — I\'ll search the web…'
+    : 'Ask anything about your documents…';
+}
+
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR RESIZE
+═══════════════════════════════════════════════════════ */
+function initResizer() {
+  const resizer = document.getElementById('sidebar-resizer');
+  const sidebar = document.getElementById('sidebar');
+  let sx, sw;
+  resizer.addEventListener('mousedown', e => {
+    sx = e.clientX; sw = sidebar.offsetWidth;
+    resizer.classList.add('active');
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    e.preventDefault();
+  });
+  function drag(e) { sidebar.style.width = Math.max(220, Math.min(480, sw + e.clientX - sx)) + 'px'; }
+  function stopDrag() { document.removeEventListener('mousemove', drag); document.removeEventListener('mouseup', stopDrag); resizer.classList.remove('active'); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SOURCE TABS
+═══════════════════════════════════════════════════════ */
+function switchTab(id) {
+  const n = ['file','url','text'];
+  document.querySelectorAll('.stab').forEach((b,i) => b.classList.toggle('active', n[i]===id));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════
+   FILE HANDLING
+═══════════════════════════════════════════════════════ */
+function dzOver(e){ e.preventDefault(); document.getElementById('drop-zone').classList.add('over'); }
+function dzLeave(){ document.getElementById('drop-zone').classList.remove('over'); }
+function dzDrop(e){ e.preventDefault(); dzLeave(); handleFiles(e.dataTransfer.files); }
+
+async function handleFiles(files) {
+  const ov = document.getElementById('file-overlay');
+  const lb = document.getElementById('file-overlay-label');
+  for (const file of files) {
+    ov.classList.add('active');
+    lb.textContent = `Reading "${file.name}"…`;
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      let text = '';
+      if (ext==='pdf') { lb.textContent = 'Extracting PDF…'; text = await readPDF(file); }
+      else if (ext==='docx'||ext==='doc') { lb.textContent = 'Parsing DOCX…'; text = await readDOCX(file); }
+      else text = await readTxt(file);
+      if (text.trim()) addDoc({name:file.name,text,icon:iconFor(ext),size:file.size,isNew:true});
+      else showErr('Could not extract text from ' + file.name);
+    } catch(e) { showErr('Error reading ' + file.name + ': ' + e.message); }
+  }
+  ov.classList.remove('active');
+  document.getElementById('file-input').value = '';
+}
+async function readPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let out = '';
+  for (let i=1;i<=pdf.numPages;i++) { const pg = await pdf.getPage(i); const c = await pg.getTextContent(); out += c.items.map(s=>s.str).join(' ')+'\n'; }
+  return out;
+}
+async function readDOCX(file) { const buf = await file.arrayBuffer(); const r = await mammoth.extractRawText({arrayBuffer:buf}); return r.value; }
+function readTxt(file) { return new Promise((res,rej) => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=()=>rej(new Error('Read failed')); r.readAsText(file); }); }
+function iconFor(ext){ return ext==='pdf'?'📄':(ext==='docx'||ext==='doc')?'📘':'📃'; }
+function fmtSize(b){ return b>1048576?(b/1048576).toFixed(1)+'MB':Math.round(b/1024)+'KB'; }
+
+/* ═══════════════════════════════════════════════════════
+   URL SCRAPING — Parallel fetching with Jina + proxy fallbacks
+═══════════════════════════════════════════════════════ */
+// Core fetch helper — tries all methods for a single URL
+async function tryFetchUrl(url) {
+  try { const t = await jinaFetch(url, 12000); if (t && t.length >= 60) return t; } catch {}
+  try { const h = await directFetch(url); const t = htmlToText(h); if (t.length >= 60) return t; } catch {}
+  try { const h = await proxyfetch(url); const t = htmlToText(h); if (t.length >= 60) return t; } catch {}
+  return null;
+}
+
+async function addUrl() {
+  const inp = document.getElementById('url-input');
+  const raw = inp.value.trim(); if (!raw) return;
+  const maxPages = parseInt(document.getElementById('crawl-depth').value);
+  const ov = document.getElementById('url-overlay');
+  const lbl = document.getElementById('url-overlay-label');
+  const sub = document.getElementById('url-overlay-sub');
+  const btn = document.getElementById('fetch-btn');
+  ov.classList.add('active'); btn.classList.add('loading'); btn.textContent = 'Fetching…';
+
+  const startUrl = (raw.startsWith('http') ? raw : 'https://'+raw).replace(/\/$/,'');
+  let origin;
+  try { origin = new URL(startUrl).origin; } catch(e) { showErr('Invalid URL: ' + raw); ov.classList.remove('active'); btn.classList.remove('loading'); btn.textContent = 'Fetch'; return; }
+
+  const visited = new Set();
+  const pages = [];
+
+  try {
+    // ── Step 1: Fetch homepage ──────────────────────────
+    lbl.textContent = 'Fetching homepage…'; sub.textContent = startUrl;
+    visited.add(startUrl.replace(/\/$/,''));
+    const homeText = await tryFetchUrl(startUrl);
+    if (homeText) pages.push({url: startUrl, text: homeText});
+    else { lbl.textContent = 'Homepage returned empty, trying fallbacks…'; }
+
+    if (maxPages > 1) {
+      // ── Step 2: Collect candidate URLs (sitemap + common paths) ──
+      const candidates = new Set();
+      lbl.textContent = 'Scanning sitemap…'; sub.textContent = '';
+      try {
+        const sxml = await jinaFetch(origin + '/sitemap.xml', 6000);
+        [...sxml.matchAll(/https?:\/\/[^\s<"']+/g)]
+          .map(m => m[0])
+          .filter(u => { try { return new URL(u).hostname === new URL(origin).hostname; } catch { return false; } })
+          .forEach(u => candidates.add(u.replace(/\/$/,'')));
+      } catch {}
+      COMMON_PATHS.forEach(p => candidates.add(origin + p));
+
+      // ── Step 3: Parallel fetch in batches of 3 ──────────
+      const toFetch = [...candidates]
+        .filter(u => !visited.has(u))
+        .slice(0, Math.min((maxPages - pages.length) * 2, 30)); // over-fetch, stop at maxPages
+
+      const BATCH = 3;
+      for (let i = 0; i < toFetch.length && pages.length < maxPages; i += BATCH) {
+        const batch = toFetch.slice(i, i + BATCH);
+        lbl.textContent = `Fetching pages ${pages.length + 1}–${Math.min(pages.length + BATCH, maxPages)} of ${maxPages}…`;
+        sub.textContent = batch.map(u => { try { return new URL(u).pathname; } catch { return u; } }).join(', ');
+
+        const results = await Promise.allSettled(batch.map(u => tryFetchUrl(u)));
+        results.forEach((r, j) => {
+          visited.add(batch[j]);
+          if (r.status === 'fulfilled' && r.value && pages.length < maxPages) {
+            pages.push({url: batch[j], text: r.value});
+          }
+        });
+      }
+    }
+
+    if (!pages.length) throw new Error('No readable content found on this site.');
+
+    const hostname = new URL(startUrl).hostname;
+    const combined = pages.map(p => `\n=== PAGE: ${p.url} ===\n${p.text}`).join('\n\n');
+    addDoc({name: hostname, text: combined, icon: '🌐', size: combined.length, isNew: true, pageCount: pages.length});
+    inp.value = '';
+    document.getElementById('url-hint').innerHTML = `<span class="pages-badge">✓ ${pages.length} page${pages.length > 1 ? 's' : ''} scraped</span>`;
+    setTimeout(() => { document.getElementById('url-hint').textContent = 'JS-rendered sites supported via Jina AI'; }, 5000);
+
+  } catch(e) {
+    showErr('Scrape failed: ' + e.message + '<br><small>Tips: (1) Paste content via the <b>Text</b> tab. (2) LinkedIn/paywalled sites block all scrapers. (3) Try homepage URL only.</small>');
+  }
+
+  ov.classList.remove('active'); btn.classList.remove('loading'); btn.textContent = 'Fetch';
+}
+async function jinaFetch(url, timeout=20000) {
+  const r = await fetch(`https://r.jina.ai/${url}`, {
+    headers:{
+      'Accept':'text/plain',
+      'X-Return-Format':'markdown',
+      'X-No-Cache':'true',
+      'X-Timeout': String(Math.floor(timeout/1000))
+    },
+    signal: AbortSignal.timeout(timeout)
+  });
+  if (!r.ok) throw new Error(`Jina HTTP ${r.status}`);
+  const t = await r.text();
+  if (!t || t.length < 60) throw new Error('Empty response');
+  return t;
+}
+
+async function proxyfetch(url) {
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
+    u => `https://crossorigin.me/${u}`,
+  ];
+  for (const fn of proxies) {
+    try {
+      const r = await fetch(fn(url), {signal:AbortSignal.timeout(8000)});
+      if (!r.ok) continue;
+      const ct = r.headers.get('content-type')||'';
+      if (ct.includes('json')) { const j=await r.json(); return j.contents||j.data||''; }
+      const text = await r.text();
+      if (text && text.length > 60) return text;
+    } catch {}
+  }
+  throw new Error('All proxies failed');
+}
+
+async function directFetch(url) {
+  // Try a direct fetch — works for CORS-permissive APIs and some sites
+  const r = await fetch(url, {signal:AbortSignal.timeout(6000), mode:'cors'});
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return await r.text();
+}
+
+function htmlToText(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  d.querySelectorAll('script,style,nav,footer,header,noscript,iframe,svg,form').forEach(e=>e.remove());
+  return (d.innerText||d.textContent||'').replace(/\s{3,}/g,'\n\n').trim();
+}
+
+const COMMON_PATHS = [
+  '/about','/about-us','/about_us','/aboutus','/our-story','/who-we-are',
+  '/team','/our-team','/leadership','/founders','/meet-the-team',
+  '/services','/service','/solutions','/what-we-do',
+  '/contact','/contact-us','/products','/pricing','/faq','/blog','/careers',
+];
+
+/* ═══════════════════════════════════════════════════════
+   WEB SEARCH — DuckDuckGo Lite + top page fetching via Jina
+═══════════════════════════════════════════════════════ */
+function getCurrentDateTime() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'});
+  return `${dateStr} — ${timeStr}`;
+}
+
+async function webSearch(query) {
+  let searchSnippets = '';
+  let searchUrls = [];
+
+  // Step 1: Get search snippets from DuckDuckGo Lite
+  try {
+    const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}&kl=us-en`;
+    const text = await jinaFetch(ddgUrl, 15000);
+    searchSnippets = text.slice(0, 8000);
+    // Extract result URLs (skip ddg navigation links)
+    searchUrls = [...text.matchAll(/https?:\/\/(?!.*duckduckgo)[^\s\)\]"<']+/g)]
+      .map(m => m[0].replace(/[.,;]+$/,''))
+      .filter(u => { try { const h=new URL(u).hostname; return h.length>4 && !h.includes('duckduckgo'); } catch{return false;} })
+      .slice(0,3);
+  } catch(e) {
+    // Fallback: Bing
+    try {
+      const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en`;
+      const text = await jinaFetch(bingUrl, 15000);
+      searchSnippets = text.slice(0, 8000);
+      searchUrls = [...text.matchAll(/https?:\/\/(?!.*bing\.com)[^\s\)\]"<']+/g)]
+        .map(m => m[0].replace(/[.,;]+$/,''))
+        .filter(u => { try { const h=new URL(u).hostname; return h.length>4 && !h.includes('bing.com') && !h.includes('microsoft.com'); } catch{return false;} })
+        .slice(0,3);
+    } catch(e2) {
+      throw new Error('Web search unavailable: ' + e2.message);
+    }
+  }
+
+  // Step 2: Fetch actual content from top result pages (like ChatGPT Browse)
+  let pageContent = '';
+  const fetched = [];
+  for (const url of searchUrls) {
+    try {
+      const content = await jinaFetch(url, 10000);
+      if (content && content.length > 100) {
+        pageContent += `\n\n=== PAGE: ${url} ===\n${content.slice(0, 4000)}`;
+        fetched.push(url);
+      }
+    } catch {}
+    if (fetched.length >= 2) break; // Max 2 full pages to keep response fast
+  }
+
+  const header = `[CURRENT DATE & TIME: ${getCurrentDateTime()}]\n\n`;
+  const body = `SEARCH SNIPPETS:\n${searchSnippets}\n\nFULL PAGE CONTENT:\n${pageContent || '(Could not fetch pages — answer from snippets above)'}`;
+  return (header + body).slice(0, 22000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   DOC MANAGEMENT
+═══════════════════════════════════════════════════════ */
+function addDoc(doc) { docs.push(doc); renderDocs(docs.length-1); updateDocChip(); }
+function removeDoc(i) { docs.splice(i,1); renderDocs(); updateDocChip(); }
+function clearAll() { docs=[]; history=[]; renderDocs(); updateDocChip(); }
+function renderDocs(newIdx=-1) {
+  const el = document.getElementById('doc-list');
+  if (!docs.length) { el.innerHTML='<div class="doc-empty">No sources loaded yet</div>'; return; }
+  el.innerHTML = docs.map((d,i) =>
+    `<div class="doc-item${i===newIdx?' new':''}" id="di-${i}">
+      <span class="doc-icon">${d.icon}</span>
+      <span class="doc-name" title="${d.name}">${d.name}</span>
+      ${d.pageCount?`<span class="doc-status">${d.pageCount}p</span>`:''}
+      <span class="doc-bytes">${fmtSize(d.size)}</span>
+      ${i===newIdx?'<span class="doc-status">✓</span>':''}
+      <button class="doc-remove" onclick="removeDoc(${i})">✕</button>
+    </div>`).join('');
+  if (newIdx>=0) setTimeout(()=>{ const el2=document.getElementById(`di-${newIdx}`); if(el2) el2.classList.remove('new'); },2500);
+}
+function updateDocChip() {
+  const c = document.getElementById('doc-chip');
+  if (sourceMode==='web') return;
+  if (!docs.length) { c.textContent='No sources'; c.className='chip warn'; }
+  else { c.textContent=docs.length+' source'+(docs.length>1?'s':''); c.className='chip ready'; }
+}
+function addPaste() {
+  const box=document.getElementById('paste-box');
+  const text=box.value.trim(); if(!text) return;
+  addDoc({name:'Snippet #'+(docs.length+1),text,icon:'📝',size:text.length});
+  box.value='';
+}
+function showErr(msg) { const b=document.getElementById('err-bar'); b.innerHTML=msg; b.style.display='block'; setTimeout(()=>b.style.display='none',10000); }
+
+/* ═══════════════════════════════════════════════════════
+   GITHUB STORAGE
+═══════════════════════════════════════════════════════ */
+function getGhCfg() {
+  const cfg = getAdminCfg();
+  const token = cfg?.githubToken || DEPLOY_CONFIG.githubToken;
+  const repo  = cfg?.githubRepo  || DEPLOY_CONFIG.githubRepo;
+  return (token && repo) ? {token, repo} : null;
+}
+
+function ghFilePath(sessionId) {
+  const proj = loadProjects().find(p=>p.id===currentProjectId);
+  const projName = (proj?.name||'default').replace(/[^a-z0-9_-]/gi,'-').toLowerCase();
+  return `history/${currentUser?.replace(/[^a-z0-9_-]/gi,'-').toLowerCase() || 'user'}/${projName}/${sessionId}.json`;
+}
+
+async function ghGet(path) {
+  const {token, repo} = getGhCfg();
+  const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+    headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
+  });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('GitHub GET failed: '+r.status);
+  const data = await r.json();
+  ghShaCache[path] = data.sha;
+  return JSON.parse(atob(data.content.replace(/\s/g,'')));
+}
+
+async function ghEnsureRepoReady() {
+  // GitHub API can't write to a completely empty repo — ensure a README exists
+  const {token, repo} = getGhCfg();
+  try {
+    const r = await fetch(`https://api.github.com/repos/${repo}/contents/README.md`, {
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
+    });
+    if (r.status === 404) {
+      // Repo is empty — create a README to initialize it
+      await fetch(`https://api.github.com/repos/${repo}/contents/README.md`, {
+        method:'PUT',
+        headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+        body: JSON.stringify({
+          message: 'Initialize Project Assistant data repo',
+          content: btoa('# Project Assistant Data\n\nThis repo stores chat history for Project Assistant.\n')
+        })
+      });
+    }
+  } catch {}
+}
+
+async function ghPut(path, content) {
+  const {token, repo} = getGhCfg();
+  // If SHA not cached (e.g. after page refresh), fetch it first to avoid 422 conflict
+  if (!ghShaCache[path]) {
+    try {
+      const check = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
+      });
+      if (check.ok) {
+        const existing = await check.json();
+        ghShaCache[path] = existing.sha;
+      }
+    } catch {}
+  }
+  const body = {
+    message: `Update chat history`,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
+  };
+  if (ghShaCache[path]) body.sha = ghShaCache[path];
+  const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+    method:'PUT',
+    headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const e = await r.json();
+    const msg = e.message || 'GitHub PUT failed';
+    // Specific helpful error messages
+    if (r.status === 401 || r.status === 403) throw new Error('Bad credentials — check your GitHub token has "repo" scope');
+    if (r.status === 404) throw new Error('Repo not found — check githubRepo setting: ' + repo);
+    if (r.status === 422) throw new Error('SHA conflict — will retry next message');
+    throw new Error(msg);
+  }
+  const data = await r.json();
+  ghShaCache[path] = data.content?.sha;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SESSION / HISTORY
+═══════════════════════════════════════════════════════ */
+function flashStorageChip(text, cls) {
+  const sc = document.getElementById('storage-chip');
+  if (!sc) return;
+  const prev = {text: sc.textContent, cls: sc.className};
+  sc.textContent = text;
+  sc.className = 'chip ' + cls;
+  setTimeout(() => { sc.textContent = prev.text; sc.className = prev.cls; }, 3000);
+}
+
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function loadSessions() { try { return JSON.parse(localStorage.getItem(K.sessions)||'[]'); } catch { return []; } }
+function saveSessions(s) { try { localStorage.setItem(K.sessions,JSON.stringify(s.slice(0,60))); } catch {} }
+function sessionTitle(msgs) { const f=msgs.find(m=>m.role==='user'); return f ? f.content.slice(0,55)+(f.content.length>55?'…':'') : 'New conversation'; }
+
+async function saveCurrentSession() {
+  if (!history.length) return;
+  const sessions = loadSessions();
+  const html = document.getElementById('messages').innerHTML;
+  const session = {
+    id: currentSessionId||genId(),
+    projectId: currentProjectId,
+    title: sessionTitle(history),
+    ts: Date.now(),
+    history: JSON.parse(JSON.stringify(history)),
+    html,
+  };
+  currentSessionId = session.id;
+  const idx = sessions.findIndex(s=>s.id===currentSessionId);
+  if (idx>=0) sessions[idx]=session; else sessions.unshift(session);
+  saveSessions(sessions);
+
+  // GitHub storage (non-blocking)
+  if (getGhCfg()) {
+    try {
+      await ghEnsureRepoReady(); // initializes empty repo if needed
+      const path = ghFilePath(session.id);
+      await ghPut(path, session);
+      flashStorageChip('☁️ Saved', 'ready');
+    } catch(e) {
+      console.warn('GitHub save failed:', e.message);
+      showErr('GitHub save: ' + e.message);
+      flashStorageChip('☁️ Failed', 'warn');
+    }
+  }
+
+  // Local folder save (works on any protocol — file://, https://, etc.)
+  if (window._localFolderHandle) {
+    try { await saveToLocalFolder(session); } catch(e) { console.warn('Local folder save failed:', e.message); }
+  }
+}
+
+async function saveToLocalFolder(session) {
+  const proj = loadProjects().find(p=>p.id===currentProjectId);
+  const projName = (proj?.name||'default').replace(/[^a-z0-9_-]/gi,'-');
+  const userFolder = await window._localFolderHandle.getDirectoryHandle(currentUser||'user', {create:true});
+  const projFolder = await userFolder.getDirectoryHandle(projName, {create:true});
+  const fh = await projFolder.getFileHandle(session.id+'.json', {create:true});
+  const w = await fh.createWritable();
+  await w.write(JSON.stringify(session,null,2));
+  await w.close();
+}
+
+function openHistPanel() { saveCurrentSession(); renderHistList(); document.getElementById('hist-backdrop').classList.add('open'); document.getElementById('hist-panel').classList.add('open'); }
+function closeHistPanel() { document.getElementById('hist-backdrop').classList.remove('open'); document.getElementById('hist-panel').classList.remove('open'); }
+
+function renderHistList() {
+  const sessions = loadSessions().filter(s => !currentProjectId || s.projectId===currentProjectId || !s.projectId);
+  const el = document.getElementById('hist-list');
+  if (!sessions.length) { el.innerHTML='<div class="hist-empty">No conversations yet.</div>'; return; }
+  el.innerHTML = sessions.map(s => {
+    const d = new Date(s.ts);
+    const ds = d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    return `<div class="hist-item${s.id===currentSessionId?' active-session':''}" onclick="loadSession('${s.id}')">
+      <div class="hist-title">${escHtml(s.title)}</div>
+      <div class="hist-meta"><span>🕐 ${ds}</span><span>💬 ${s.history.length} msgs</span></div>
+      <button class="hist-del" onclick="deleteSession(event,'${s.id}')">Delete</button>
+    </div>`;
+  }).join('');
+}
+
+function loadSession(id) {
+  saveCurrentSession();
+  const s = loadSessions().find(x=>x.id===id);
+  if (!s) return;
+  history = JSON.parse(JSON.stringify(s.history));
+  currentSessionId = s.id;
+  document.getElementById('messages').innerHTML = s.html;
+  // Re-render any plain-text AI bubbles as markdown
+  document.getElementById('messages').querySelectorAll('.msg.ai .bubble').forEach(bubble => {
+    if (!bubble.querySelector('.md-body')) {
+      const text = bubble.textContent;
+      const html = renderMarkdown(text);
+      if (html) { bubble.innerHTML = ''; const md=document.createElement('div'); md.className='md-body'; md.innerHTML=html; md.querySelectorAll('script').forEach(s=>s.remove()); bubble.appendChild(md); }
+    }
+  });
+  document.getElementById('messages').scrollTop = 9999;
+  closeHistPanel();
+}
+
+function deleteSession(e, id) {
+  e.stopPropagation();
+  if (!confirm('Delete this conversation?')) return;
+  saveSessions(loadSessions().filter(s=>s.id!==id));
+  if (currentSessionId===id) { currentSessionId=null; }
+  renderHistList();
+}
+
+/* ═══════════════════════════════════════════════════════
+   CHAT CONTROLS
+═══════════════════════════════════════════════════════ */
+function newChat() {
+  saveCurrentSession();
+  history=[]; currentSessionId=genId();
+  const wrap = document.getElementById('messages');
+  wrap.innerHTML = `<div class="empty-state" id="empty-state">
+    <div class="empty-icon">🗂️</div>
+    <h2>Ready to help</h2>
+    <p>Load documents or switch to Web Search, then ask anything.</p>
+    <div class="suggestions">
+      <button class="sug" onclick="suggestQ(this)">Summarise the key objectives</button>
+      <button class="sug" onclick="suggestQ(this)">What are the main risks?</button>
+      <button class="sug" onclick="suggestQ(this)">List all action items and owners</button>
+    </div></div>`;
+  document.getElementById('chat-input').focus();
+}
+
+function clearHistory() {
+  if (!history.length) return;
+  if (!confirm('Clear message history?')) return;
+  history=[];
+  document.getElementById('messages').querySelectorAll('.msg').forEach(m=>m.remove());
+  currentSessionId=genId();
+}
+
+/* ── Persona ── */
+function togglePersona() { document.getElementById('persona-toggle').classList.toggle('open'); document.getElementById('persona-body').classList.toggle('open'); }
+const TONES = { Professional:'Formal, professional tone. Use structured formatting.',Friendly:'Warm, conversational tone.',Concise:'Extremely concise. Bullet points. No filler.',Detailed:'Thorough explanations with examples.',Technical:'Precise technical language with specific details.' };
+function applyTone(btn, tone) { document.querySelectorAll('.tone-chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active'); document.getElementById('persona-instructions').value=TONES[tone]; }
+
+/* ═══════════════════════════════════════════════════════
+   STREAMING BUBBLES
+═══════════════════════════════════════════════════════ */
+function suggestQ(btn) { document.getElementById('chat-input').value=btn.textContent; sendMessage(); }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
+function removeEmpty() { const e=document.getElementById('empty-state'); if(e) e.remove(); }
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addBubble(role, content) {
+  removeEmpty();
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg '+(role==='user'?'user':'ai');
+  const label = role==='user'?(currentUser||'You'):'Project Assistant';
+  const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent=content;
+  div.innerHTML=`<div class="msg-meta">${label}</div>`; div.appendChild(bubble);
+  wrap.appendChild(div); wrap.scrollTop=wrap.scrollHeight;
+}
+
+function startStreamBubble(isWeb) {
+  removeEmpty();
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai'+(isWeb?' web':'');
+  div.id = 'sb-wrap';
+  const meta = document.createElement('div'); meta.className='msg-meta'; meta.textContent='Project Assistant';
+  const bubble = document.createElement('div'); bubble.className='bubble';
+  const textNode = document.createTextNode('');
+  const cursor = document.createElement('span'); cursor.className='stream-cursor';
+  bubble.appendChild(textNode); bubble.appendChild(cursor);
+  div.appendChild(meta); div.appendChild(bubble);
+  wrap.appendChild(div); wrap.scrollTop=wrap.scrollHeight;
+  return {textNode, cursor, wrap};
+}
+
+function renderMarkdown(text) {
+  if (typeof marked === 'undefined') return null;
+  try {
+    marked.setOptions({breaks:true, gfm:true});
+    return marked.parse(text);
+  } catch { return null; }
+}
+
+function createPainter(textNode, cursor, wrap) {
+  let queue='', raf=null, done=false, full='';
+  const paint = () => {
+    if(queue){full+=queue;textNode.textContent+=queue;queue='';wrap.scrollTop=wrap.scrollHeight;}
+    if(!done) raf=requestAnimationFrame(paint);
+  };
+  raf=requestAnimationFrame(paint);
+  return {
+    push(c){queue+=c;},
+    finish(){
+      done=true;cancelAnimationFrame(raf);
+      if(queue){full+=queue;textNode.textContent+=queue;queue='';}
+      cursor.remove();
+      // Upgrade plain text to markdown after stream ends
+      const bubble = textNode.parentElement;
+      if (bubble) {
+        const html = renderMarkdown(full);
+        if (html) {
+          bubble.innerHTML = '';
+          const md = document.createElement('div');
+          md.className = 'md-body';
+          md.innerHTML = html;
+          // Sanitize: remove script tags
+          md.querySelectorAll('script').forEach(s=>s.remove());
+          bubble.appendChild(md);
+        }
+      }
+      wrap.scrollTop=wrap.scrollHeight;
+    }
+  };
+}
+
+/* ─ SSE parsers ─ */
+async function streamOpenAI(url, headers, body, painter) {
+  const res = await fetch(url,{method:'POST',headers,body:JSON.stringify({...body,stream:true})});
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`HTTP ${res.status}`);}
+  const reader=res.body.getReader(); const dec=new TextDecoder(); let reply='',buf='';
+  while(true){const{done,value}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n'); buf=lines.pop();
+    for(const line of lines){if(!line.startsWith('data: ')) continue; const d=line.slice(6).trim(); if(d==='[DONE]') break;
+      try{const delta=JSON.parse(d).choices?.[0]?.delta?.content||''; if(delta){reply+=delta;painter.push(delta);}}catch{} }}
+  return reply;
+}
+
+async function streamClaude(url, headers, body, painter) {
+  const res = await fetch(url,{method:'POST',headers,body:JSON.stringify({...body,stream:true})});
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`HTTP ${res.status}`);}
+  const reader=res.body.getReader(); const dec=new TextDecoder(); let reply='',buf='';
+  while(true){const{done,value}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n'); buf=lines.pop();
+    for(const line of lines){if(!line.startsWith('data: ')) continue;
+      try{const evt=JSON.parse(line.slice(6)); if(evt.type==='content_block_delta'){const d=evt.delta?.text||''; if(d){reply+=d;painter.push(d);}}}catch{} }}
+  return reply;
+}
+
+async function streamGemini(url, body, painter) {
+  const su = url.replace(':generateContent',':streamGenerateContent')+'&alt=sse';
+  const res = await fetch(su,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`HTTP ${res.status}`);}
+  const reader=res.body.getReader(); const dec=new TextDecoder(); let reply='',buf='';
+  while(true){const{done,value}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n'); buf=lines.pop();
+    for(const line of lines){if(!line.startsWith('data: ')) continue;
+      try{const d=JSON.parse(line.slice(6)).candidates?.[0]?.content?.parts?.[0]?.text||''; if(d){reply+=d;painter.push(d);}}catch{} }}
+  return reply;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SEND MESSAGE
+═══════════════════════════════════════════════════════ */
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+
+  const apiKey = getActiveApiKey();
+  const engine = getActiveEngine();
+  const model  = getActiveModel();
+
+  if (!apiKey) {
+    if (isDeployedMode()) { showErr('Engine not ready. Please refresh the page.'); }
+    else { showErr('No API key configured. Click 🔒 in the Engine section to set up.'); }
+    return;
+  }
+  if (sourceMode==='docs' && !docs.length) { showErr('Load at least one knowledge source, or switch to 🌐 Web Search.'); return; }
+
+  input.value=''; input.style.height='auto';
+  document.getElementById('send-btn').disabled=true;
+  document.getElementById('progress').classList.remove('hidden');
+  addBubble('user', q);
+
+  const persona = (document.getElementById('persona-instructions').value||'').trim();
+  let systemPrompt='', contextText='';
+
+  if (sourceMode==='web') {
+    document.getElementById('progress').classList.remove('hidden');
+    try { contextText = await webSearch(q); } catch(e) { showErr(e.message); document.getElementById('send-btn').disabled=false; document.getElementById('progress').classList.add('hidden'); return; }
+    systemPrompt = `You are Project Assistant with live web search and browsing access.\nThe context below includes the CURRENT DATE & TIME — always use it when the user asks about time, date, or recent events.\nAnswer directly and confidently using the search results and page content provided.\nIf the user asks for the current time or date, state it directly from the [CURRENT DATE & TIME] header in the context.\nCite source URLs when useful. Be accurate, direct, and helpful.\n${persona?'\nINSTRUCTIONS:\n'+persona:''}\nCONTEXT:\n${contextText}`;
+  } else {
+    contextText = docs.map(d=>`=== SOURCE: ${d.name} ===\n${d.text.slice(0,14000)}`).join('\n\n');
+    systemPrompt = `You are Project Assistant — answer only from the documents below.\nIf the answer isn't in the documents, say so clearly.\nBe concise and professional.\n${persona?'\nINSTRUCTIONS:\n'+persona:''}\nKNOWLEDGE BASE:\n${contextText}`;
+  }
+
+  history.push({role:'user',content:q});
+  const eng = ENGINES[engine];
+  const {textNode, cursor, wrap} = startStreamBubble(sourceMode==='web');
+  const painter = createPainter(textNode, cursor, wrap);
+
+  try {
+    let reply = '';
+    if (eng.format==='openai'||eng.format==='openrouter') {
+      const h={'Content-Type':'application/json','Authorization':'Bearer '+apiKey};
+      if(eng.format==='openrouter'){h['HTTP-Referer']='https://project-assistant.app';h['X-Title']='Project Assistant';}
+      reply = await streamOpenAI(eng.url, h, {model, messages:[{role:'system',content:systemPrompt},...history], max_tokens:2000, temperature:0.2}, painter);
+    } else if (eng.format==='gemini') {
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const gh=history.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+      reply = await streamGemini(url, {system_instruction:{parts:[{text:systemPrompt}]},contents:gh,generationConfig:{maxOutputTokens:2000,temperature:0.2}}, painter);
+    } else if (eng.format==='claude') {
+      reply = await streamClaude(eng.url, {'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, {model,max_tokens:2000,temperature:0.2,system:systemPrompt,messages:history.map(m=>({role:m.role,content:m.content}))}, painter);
+    }
+    painter.finish();
+    if (!reply) { reply='No response received.'; textNode.textContent=reply; }
+    history.push({role:'assistant',content:reply});
+    await saveCurrentSession();
+  } catch(e) {
+    painter.finish();
+    document.getElementById('sb-wrap')?.remove();
+    showErr(`<strong>${eng.label} error:</strong> ${e.message}`);
+    history.pop();
+  }
+
+  document.getElementById('send-btn').disabled=false;
+  document.getElementById('progress').classList.add('hidden');
+  document.getElementById('chat-input').focus();
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOCAL FOLDER (accessible from admin panel)
+═══════════════════════════════════════════════════════ */
+async function pickLocalFolder() {
+  if (!window.showDirectoryPicker) {
+    alert('Local folder saving requires Chrome or Edge (desktop). This browser does not support it.');
+    return;
+  }
+  try {
+    window._localFolderHandle = await window.showDirectoryPicker({mode:'readwrite'});
+    localStorage.setItem('pa_localfolder', window._localFolderHandle.name);
+    updateFolderStatus();
+    showErr('<span style="color:var(--success)">✓ Folder set: "'+window._localFolderHandle.name+'" — chats will auto-save here.</span>');
+  } catch(e) {
+    if (e.name !== 'AbortError') showErr('Folder access error: ' + e.message);
+  }
+}
+
+function updateFolderStatus() {
+  const el = document.getElementById('folder-status');
+  if (!el) return;
+  const name = window._localFolderHandle?.name || localStorage.getItem('pa_localfolder');
+  if (name) { el.textContent = '✓ ' + name; el.style.color = 'var(--success)'; }
+  else { el.textContent = 'No folder selected'; el.style.color = 'var(--text3)'; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════ */
+function initApp() {
+  initProjects();
+  applyAdminCfg();
+  initResizer();
+  currentSessionId = genId();
+  newChat();
+}
+
+initUser();
+</script>
+</body>
+</html>
